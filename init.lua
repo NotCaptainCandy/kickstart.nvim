@@ -195,10 +195,42 @@ vim.api.nvim_create_autocmd('TermOpen', {
   end,
 })
 
+local job_id = 0
 vim.keymap.set('n', '<space>tt', function()
   vim.cmd 'hor term'
   vim.api.nvim_win_set_height(0, 15)
   vim.cmd.startinsert()
+  job_id = vim.bo.channel
+end)
+
+-- Create auto CheckpointPaste for manim
+
+vim.keymap.set('n', '<space>rm', function()
+  local prev_comment = vim.fn.search([[^\s*#.*$]], 'bW')
+  if prev_comment == 0 then
+    print 'No previous # comment found.'
+    return
+  end
+
+  -- Search forward for the *next* line beginning with '#'
+  local next_comment = vim.fn.search([[^\s*#.*$]], 'W')
+  if next_comment == 0 then
+    -- No next comment found → yank until end of file
+    next_comment = vim.fn.line '$' -- last line of file
+  else
+    -- We only want lines up to (the line before) that next comment
+    next_comment = next_comment - 1
+  end
+
+  if next_comment < prev_comment then
+    print 'No next # comment found after previous one.'
+    return
+  end
+
+  -- Perform the yank from prev_comment to next_comment (inclusive)
+  vim.cmd(prev_comment .. ',' .. next_comment .. 'y')
+  print('Checkpoint running from lines' .. prev_comment .. ' to ' .. next_comment)
+  vim.fn.chansend(job_id, { 'checkpoint_paste() #\r\n' })
 end)
 
 -- TIP: Disable arrow keys in normal mode
